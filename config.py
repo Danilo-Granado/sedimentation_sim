@@ -9,7 +9,7 @@ from dataclasses import dataclass
 # "run"  : run the simulation, save results to RESULTS_FILE, then plot
 # "plot" : load results from RESULTS_FILE and plot only (no simulation)
 MODE = "run"
-RESULTS_FILE = "settling_results.h5"
+RESULTS_FILE = "outputs/settling_results.h5"
 
 # ── Physical constants ────────────────────────────────────────────────────────
 G = 9.81        # gravitational acceleration,  m/s²
@@ -19,10 +19,10 @@ RHO_F = 1100.0  # fluid density,               kg/m³
 MU    = 20e-3  # dynamic viscosity,            Pa·s
 
 # ── Simulation settings ───────────────────────────────────────────────────────
-N_PARTICLES_TOTAL = 500   # total particles across all species
-H_COLUMN          = 1.0   # column height,            m
+N_PARTICLES_TOTAL = 5000   # total particles across all species
+H_COLUMN          = 0.3   # column height,            m
 DT                = 1.0   # time step,                s
-N_CELLS           = 50    # vertical cells for φ field
+N_CELLS           = 100    # vertical cells for φ field
 
 # ── Column geometry ───────────────────────────────────────────────────────────
 COLUMN_ASPECT_RATIO = 2   # H_COLUMN / W_COLUMN

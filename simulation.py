@@ -268,7 +268,7 @@ def plot_results(res: dict) -> None:
         ax8.pie(final_vols, labels=[n.split()[0] for n in names], colors=colors, autopct="%1.1f%%", textprops={'fontsize': 8})
     ax8.set_title("Final Bed Composition")
 
-    plt.savefig("settling_results.png", dpi=150, bbox_inches="tight")
+    plt.savefig("outputs/settling_results.png", dpi=150, bbox_inches="tight")
     print("Comprehensive plot saved to settling_results.png")
 
 def save_results(res: dict, filepath: str) -> None:
