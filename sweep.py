@@ -1,21 +1,6 @@
 """
 sweep.py — Sequential parameter sweep runner
-=============================================
-Runs the settling simulation N times with one or more parameters varied
-across a range.  All sweep parameters co-vary together across the same
-N runs (not a grid search).
-
-Usage
------
-1. Edit the USER SETTINGS block below.
-2. Run:  python sweep.py
-
-Outputs (all written to SWEEP_DIR)
--------
-  sweep_00_<label>.h5       — full HDF5 result for each run
-  sweep_comparison.png      — focused comparison figure
-  sweep_summary.csv         — one row per run, key metrics
-  run_log.txt               — brief per-run log including errors
+See README.md for a detailed tutorial and output descriptions.
 """
 
 from __future__ import annotations
@@ -53,30 +38,22 @@ N_RUNS = 5
 # Snapshot percentages captured per run (keeps HDF5 files compact)
 SNAP_PCTS = [0, 50, 100]
 
-# ── Sweep parameter definitions ───────────────────────────────────────────────
-# target  : "fluid"   → patches a module-level constant in simulation.py
-#                       (MU, RHO_F, G)
-#           "sim"     → patches a simulation setting
-#                       (N_PARTICLES_TOTAL, H_COLUMN, DT, N_CELLS, K_REP)
-#           "species" → patches one attribute on a named species in the mixture
-#                       (phi, d_mean, d_sigma, d50, d90, d10, rho_p)
-# attr    : attribute name to change (string)
-# species : species name to target when target="species"; None otherwise
-# start   : parameter value at run 0
-# end     : parameter value at run N-1
-# scale   : "linear" or "log" spacing between start and end
-
 @dataclass
 class SweepParam:
-    target : str              # "fluid", "sim", or "species"
-    attr   : str              # attribute name
-    species: str | None       # species name (target="species" only)
+    """
+    Defines a parameter to vary during the sweep.
+    target : "fluid", "sim", or "species"
+    attr   : attribute name to change
+    species: name of the species (only for target="species")
+    """
+    target : str
+    attr   : str
+    species: str | None
     start  : float
     end    : float
     scale  : str = "linear"   # "linear" or "log"
 
     def values(self, n: int) -> np.ndarray:
-        """Return n evenly spaced values between start and end."""
         if n == 1:
             return np.array([self.start])
         if self.scale == "log":
@@ -92,7 +69,7 @@ class SweepParam:
 
 
 # ── Define your sweeps here ───────────────────────────────────────────────────
-# Multiple entries are co-varied: run i uses values[i] from every sweep.
+# All entries in this list co-vary together across N_RUNS.
 SWEEPS: list[SweepParam] = [
     SweepParam(
         target  = "fluid",
@@ -102,8 +79,6 @@ SWEEPS: list[SweepParam] = [
         end     = 100e-3,
         scale   = "linear",
     ),
-    # Add more sweeps here, e.g.:
-    # SweepParam("species", "phi", "ZnO (Zinc Oxide)", start=0.01, end=0.05),
 ]
 
 
@@ -113,12 +88,6 @@ SWEEPS: list[SweepParam] = [
 
 def _generate_run_configs(sweeps: list[SweepParam],
                           n_runs: int) -> list[list[tuple[SweepParam, float]]]:
-    """
-    Build a list of run-config lists, one per run.
-    Each run-config is a list of (SweepParam, value) pairs for that run.
-    Using a list of tuples rather than a dict avoids the unhashable-dataclass
-    issue and preserves sweep order.
-    """
     value_arrays = [sw.values(n_runs) for sw in sweeps]
     configs = []
     for i in range(n_runs):
@@ -129,20 +98,12 @@ def _generate_run_configs(sweeps: list[SweepParam],
 
 def _run_label(run_idx: int,
                run_cfg: list[tuple[SweepParam, float]]) -> str:
-    """Short filename-safe label for a run, e.g. '00_MU_0.0200'."""
     parts = [f"{sw.label}_{val:.4g}" for sw, val in run_cfg]
     return f"{run_idx:02d}_" + "_".join(parts)
 
 
 def _apply_overrides(run_cfg: list[tuple[SweepParam, float]],
                      base_mixture: list[Species]) -> tuple[list[Species], dict]:
-    """
-    Apply sweep values to a deep-copied mixture and return:
-      - patched_mixture : list[Species] with species fields updated
-      - module_overrides: {attr: value} to patch onto the sim module
-
-    The sim module is NOT mutated here; caller does setattr after this returns.
-    """
     patched_mixture = copy.deepcopy(base_mixture)
     module_overrides = {}
 
@@ -161,10 +122,6 @@ def _apply_overrides(run_cfg: list[tuple[SweepParam, float]],
 
 
 def _patch_module(overrides: dict) -> dict:
-    """
-    Apply {attr: value} overrides to the simulation module.
-    Returns the original values so they can be restored.
-    """
     original = {}
     for attr, val in overrides.items():
         original[attr] = getattr(sim, attr)
@@ -173,7 +130,6 @@ def _patch_module(overrides: dict) -> dict:
 
 
 def _restore_module(original: dict) -> None:
-    """Restore simulation module attributes to their pre-patch values."""
     for attr, val in original.items():
         setattr(sim, attr, val)
 
@@ -181,7 +137,6 @@ def _restore_module(original: dict) -> None:
 def _time_to_pct(times: np.ndarray,
                  settled_frac: np.ndarray,
                  pct: float) -> float:
-    """Return time (min) at which settled_frac first reaches pct/100."""
     idx = np.searchsorted(settled_frac, pct / 100.0)
     if idx >= len(times):
         return float("nan")
@@ -246,7 +201,6 @@ def _write_csv(csv_path: str,
                  "final_settled_pct", "duration_min"]
               + [f"settled_{sp.split()[0]}_pct" for sp in sp_names])
 
-    # Build a lookup: sweep label → value for a given run_cfg
     def cfg_val(run_cfg, sw):
         for s, v in run_cfg:
             if s is sw:
@@ -285,7 +239,7 @@ def _write_csv(csv_path: str,
 
 
 # =============================================================================
-# Comparison plot  (focused: bed height, bed composition, sedimentation rate)
+# Comparison plot
 # =============================================================================
 
 def _plot_comparison(results_list: list[dict | None],
@@ -293,13 +247,6 @@ def _plot_comparison(results_list: list[dict | None],
                      run_labels: list[str],
                      sweeps: list[SweepParam],
                      output_path: str) -> None:
-    """
-    Four-panel comparison figure:
-      1. Cumulative settling curves (overall only, one line per run)
-      2. Bed height growth curves
-      3. Final bed composition (stacked bar, one bar per run)
-      4. Key metrics vs sweep value (t50, t90, final bed height)
-    """
     # Filter to successful runs only
     valid = [(i, res, run_cfgs[i], run_labels[i])
              for i, res in enumerate(results_list) if res is not None]
@@ -308,21 +255,18 @@ def _plot_comparison(results_list: list[dict | None],
         return
 
     def _val(cfg, sw):
-        """Look up a swept value from a list-of-tuples run config."""
         for s, v in cfg:
             if s is sw:
                 return v
         return float("nan")
 
     def _leg(cfg):
-        """Short legend string from a run config."""
         return ", ".join(f"{sw.label}={_val(cfg, sw):.3g}" for sw in sweeps)
 
     n_valid  = len(valid)
     cmap     = get_cmap("viridis")
     colors   = [cmap(i / max(n_valid - 1, 1)) for i in range(n_valid)]
 
-    # Sweep axis label: show all swept parameter names
     sweep_axis_label = " / ".join(sw.label for sw in sweeps)
 
     fig = plt.figure(figsize=(16, 10))
@@ -331,10 +275,10 @@ def _plot_comparison(results_list: list[dict | None],
     gs = gridspec.GridSpec(2, 2, figure=fig, hspace=0.42, wspace=0.32,
                            left=0.07, right=0.97, top=0.93, bottom=0.08)
 
-    ax1 = fig.add_subplot(gs[0, 0])   # settling curves
-    ax2 = fig.add_subplot(gs[0, 1])   # bed height growth
-    ax3 = fig.add_subplot(gs[1, 0])   # final bed composition
-    ax4 = fig.add_subplot(gs[1, 1])   # key metrics vs sweep value
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, 0])
+    ax4 = fig.add_subplot(gs[1, 1])
 
     # ── Panel 1: cumulative settling curves ───────────────────────────────
     for color, (i, res, cfg, label) in zip(colors, valid):
@@ -393,7 +337,6 @@ def _plot_comparison(results_list: list[dict | None],
     ax3.grid(True, alpha=0.3, axis="x")
 
     # ── Panel 4: key metrics vs swept parameter value ─────────────────────
-    # Use the first sweep's value as the x axis (all params co-vary)
     primary_sw = sweeps[0]
     x_vals = np.array([_val(cfg, primary_sw) for _, _, cfg, _ in valid])
 
@@ -447,20 +390,7 @@ def run_sweep(sweeps: list[SweepParam] = SWEEPS,
               n_runs: int = N_RUNS,
               snap_pcts: list[float] = SNAP_PCTS,
               sweep_dir: str = SWEEP_DIR) -> list[dict | None]:
-    """
-    Execute the full parameter sweep.
-
-    Parameters
-    ----------
-    sweeps    : list of SweepParam defining which parameters to vary
-    n_runs    : total number of runs
-    snap_pcts : snapshot percentages captured per run
-    sweep_dir : output directory
-
-    Returns
-    -------
-    results_list : list of result dicts (None for failed runs)
-    """
+    """Execute the full parameter sweep."""
     os.makedirs(sweep_dir, exist_ok=True)
     log_path  = os.path.join(sweep_dir, "run_log.txt")
     csv_path  = os.path.join(sweep_dir, "sweep_summary.csv")
@@ -471,7 +401,6 @@ def run_sweep(sweeps: list[SweepParam] = SWEEPS,
 
     _init_log(log_path, sweeps, n_runs)
 
-    # Print sweep plan before starting
     W = 70
     print("=" * W)
     print("  PARAMETER SWEEP")
@@ -489,7 +418,6 @@ def run_sweep(sweeps: list[SweepParam] = SWEEPS,
     for i, (cfg, label) in enumerate(zip(run_cfgs, run_labels)):
         print(f"Run {i+1}/{n_runs}  [{label}]")
 
-        # Build patched mixture and module overrides
         try:
             patched_mixture, module_overrides = _apply_overrides(
                 cfg, config.MIXTURE)
@@ -500,7 +428,6 @@ def run_sweep(sweeps: list[SweepParam] = SWEEPS,
             results_list.append(None)
             continue
 
-        # Validate total phi before running
         total_phi = sum(sp.phi for sp in patched_mixture)
         if total_phi >= config.PHI_BED:
             msg = (f"Total phi={total_phi:.4f} >= PHI_BED={config.PHI_BED} "
@@ -510,7 +437,6 @@ def run_sweep(sweeps: list[SweepParam] = SWEEPS,
             results_list.append(None)
             continue
 
-        # Apply module-level overrides (MU, RHO_F, etc.)
         original = _patch_module(module_overrides)
 
         try:
@@ -519,7 +445,6 @@ def run_sweep(sweeps: list[SweepParam] = SWEEPS,
                 snap_pcts=snap_pcts,
             )
 
-            # Save HDF5
             h5_path = os.path.join(sweep_dir, f"sweep_{label}.h5")
             sim.save_results(res, h5_path)
             print(f"  OK — settled={res['settled_frac'][-1]*100:.1f}%  "
@@ -536,7 +461,6 @@ def run_sweep(sweeps: list[SweepParam] = SWEEPS,
             results_list.append(None)
 
         finally:
-            # Always restore module state, even on error
             _restore_module(original)
 
     # ── Post-sweep outputs ─────────────────────────────────────────────────
