@@ -53,6 +53,50 @@ Species("ZnO (Zinc Oxide)", rho_p=5610, phi=0.0124, d_mean=50e-6, d_sigma=0.4, c
     python simulation.py
     ```
 
+## Parameter Sweeps
+
+The `sweep.py` script allows you to run multiple simulations in sequence, varying one or more parameters across a range.
+
+**Important**: This performs a **sequential sweep**, not a grid search. If multiple parameters are defined, they all co-vary together across the same $N$ runs (i.e., run $i$ uses the $i$-th value from every defined parameter range).
+
+### Setting up a Sweep
+
+1. Open `sweep.py`.
+2. Adjust `N_RUNS` and `SWEEP_DIR` in the **USER SETTINGS** block.
+3. Define the parameters to vary in the `SWEEPS` list using the `SweepParam` class.
+
+#### Sweep Targets
+
+- **`fluid`**: Modifies global constants in `simulation.py` (e.g., `MU`, `RHO_F`, `G`).
+- **`sim`**: Modifies simulation settings (e.g., `N_PARTICLES_TOTAL`, `H_COLUMN`, `DT`).
+- **`species`**: Modifies attributes of a specific species in the mixture (e.g., `phi`, `d_mean`, `rho_p`). Requires providing the exact `species` name.
+
+```python
+# Example: Varying fluid viscosity and species concentration together
+SWEEPS: list[SweepParam] = [
+    SweepParam(target="fluid", attr="MU", species=None, start=20e-3, end=100e-3),
+    SweepParam(target="species", attr="phi", species="Zinc Borate", start=0.01, end=0.05)
+]
+```
+
+### Running the Sweep
+
+```bash
+python sweep.py
+```
+
+### Sweep Outputs
+
+Results are saved to the directory specified by `SWEEP_DIR` (default: `outputs/sweep/`):
+
+- **`sweep_comparison.png`**: A summary visualization focusing on:
+    - **Bed Height**: Growth of the sediment bed over time across runs.
+    - **Bed Composition**: Final species distribution within the bed.
+    - **Settling Rates**: Comparison of $t_{50}$ and $t_{90}$ settling times against the swept parameter.
+- **`sweep_summary.csv`**: A spreadsheet with key metrics (settling times, final bed height, species percentages) for every run.
+- **`sweep_<label>.h5`**: Full HDF5 simulation data for each individual run in the sweep.
+- **`run_log.txt`**: A brief log file tracking run status and any errors.
+
 ## Output Files
 
 - `settling_results.h5`: A self-contained HDF5 file containing all simulation data, metadata, and snapshots.
