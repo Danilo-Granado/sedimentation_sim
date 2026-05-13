@@ -19,10 +19,10 @@ RHO_F = 1100.0  # fluid density,               kg/m³
 MU    = 20e-3  # dynamic viscosity,            Pa·s
 
 # ── Simulation settings ───────────────────────────────────────────────────────
-N_PARTICLES_TOTAL = 5000   # total particles across all species
+N_PARTICLES_TOTAL = 10000   # total particles across all species
 H_COLUMN          = 0.3   # column height,            m
 DT                = 1.0   # time step,                s
-N_CELLS           = 100    # vertical cells for φ field
+N_CELLS           = 500    # vertical cells for φ field
 
 # ── Column geometry ───────────────────────────────────────────────────────────
 COLUMN_ASPECT_RATIO = 2   # H_COLUMN / W_COLUMN

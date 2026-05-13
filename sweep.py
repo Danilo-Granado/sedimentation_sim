@@ -72,13 +72,21 @@ class SweepParam:
 # All entries in this list co-vary together across N_RUNS.
 SWEEPS: list[SweepParam] = [
     SweepParam(
-        target  = "fluid",
-        attr    = "MU",
-        species = None,
-        start   = 20e-3,
-        end     = 100e-3,
+        target  = "species",
+        attr    = "d_mean",
+        species = "MnO (Manganese Oxide)",
+        start   = 100e-6,
+        end     = 20e-6,
         scale   = "linear",
     ),
+    SweepParam(
+        target  = "species",
+        attr    = "d_mean",
+        species = "ZnO (Zinc Oxide)",
+        start   = 50e-6,
+        end     = 10e-6,
+        scale   = "linear"
+    )
 ]
 
 
@@ -148,7 +156,7 @@ def _time_to_pct(times: np.ndarray,
 # =============================================================================
 
 def _init_log(log_path: str, sweeps: list[SweepParam], n_runs: int) -> None:
-    with open(log_path, "w") as f:
+    with open(log_path, "w", encoding="utf-8") as f:
         f.write("Settling Simulation — Sweep Run Log\n")
         f.write("=" * 60 + "\n")
         f.write(f"N_RUNS : {n_runs}\n")
